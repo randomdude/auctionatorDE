@@ -1,0 +1,253 @@
+diff -u Auctionator.new/Auctionator.lua Auctionator/Auctionator.lua
+--- Auctionator.new/Auctionator.lua	2016-01-16 07:24:50.469370900 +0000
++++ Auctionator/Auctionator.lua	2016-01-16 08:21:39.011328400 +0000
+@@ -2126,7 +2126,8 @@
+   Atr_Col4_Heading:Hide();
+ 
+   Atr_Col1_Heading_Button:Hide();
+-  Atr_Col3_Heading_Button:Hide();
++  Atr_Col3_Heading_Button:Hide();  
++  Atr_Col4_Heading_Button:Hide();
+ 
+   local line;             -- 1 through 12 of our window to scroll
+ 
+@@ -3645,6 +3646,17 @@
+ 
+ -----------------------------------------
+ 
++function Atr_Onclick_Col4 ()
++
++  if (gCurrentPane.activeSearch) then
++    gCurrentPane.activeSearch:ClickProfitCol();
++    gCurrentPane.UINeedsUpdate = true;
++  end
++
++end
++
++-----------------------------------------
++
+ function Atr_ShowSearchSummary()
+   Auctionator.Debug.Message( 'Atr_ShowSearchSummary' )
+ 
+@@ -3653,6 +3665,7 @@
+   Atr_Col1_Heading_Button:Show();
+   Atr_Col3_Heading_Button:Show();
+   Atr_Col4_Heading:Show();
++  Atr_Col4_Heading_Button:Show();
+ 
+   gCurrentPane.activeSearch:UpdateArrows ();
+ 
+@@ -3705,10 +3718,12 @@
+       local lineEntry_itemtext  = _G["AuctionatorEntry"..line.."_PerItem_Text"];
+       local lineEntry_text    = _G["AuctionatorEntry"..line.."_EntryText"];
+       local lineEntry_stack   = _G["AuctionatorEntry"..line.."_StackPrice"];
++      local lineEntry_profit  = _G["AuctionatorEntry"..line.."_profit"];
+ 
+       lineEntry_itemtext:SetText  ("");
+       lineEntry_text:SetText  ("");
+       lineEntry_stack:SetText ("");
++      lineEntry_profit:SetText	("");
+ 
+       lineEntry_text:GetParent():SetPoint ("LEFT", 157, 0);
+ 
+@@ -3740,7 +3755,8 @@
+         end
+ 
+         lineEntry_text:SetText (icon.."  "..scn.itemName..iLevelStr)
+-        lineEntry_stack:SetText (scn:GetNumAvailable().." "..ZT("available"))
++        lineEntry_stack:SetText (scn:GetNumAvailable().." "..ZT("av."))
++        lineEntry_profit:SetText (scn.profit)
+       end
+ 
+       if (data == nil or scn.sortedData == nil or #scn.sortedData == 0) then
+diff -u Auctionator.new/Auctionator.xml Auctionator/Auctionator.xml
+--- Auctionator.new/Auctionator.xml	2016-01-16 07:24:50.471371100 +0000
++++ Auctionator/Auctionator.xml	2016-01-16 08:23:45.904586300 +0000
+@@ -301,7 +301,7 @@
+ 			
+ 			<Frame>
+ 				<Size><AbsDimension x="240" y="16" /></Size>
+-				<Anchors><Anchor point="LEFT"><Offset><AbsDimension x="167" y="0"/></Offset></Anchor></Anchors>
++				<Anchors><Anchor point="LEFT"><Offset><AbsDimension x="147" y="0"/></Offset></Anchor></Anchors>
+ 				<Layers>
+ 					<Layer level="BACKGROUND">
+ 						<FontString name="$parent_EntryText" inherits="GameFontHighlightSmall" justifyH="LEFT"/>
+@@ -311,14 +311,24 @@
+ 			
+ 
+ 			<Frame>
+-				<Size><AbsDimension x="120" y="16" /></Size>
+-				<Anchors><Anchor point="LEFT"><Offset><AbsDimension x="440" y="0"/></Offset></Anchor></Anchors>
++				<Size><AbsDimension x="100" y="16" /></Size>
++				<Anchors><Anchor point="LEFT"><Offset><AbsDimension x="420" y="0"/></Offset></Anchor></Anchors>
+ 				<Layers>
+ 					<Layer level="BACKGROUND">
+ 						<FontString name="$parent_StackPrice" inherits="GameFontHighlightSmall" justifyH="RIGHT"/>
+ 					</Layer>
+ 				</Layers>
+ 			</Frame>
++
++			<Frame>
++				<Size><AbsDimension x="40" y="16" /></Size>
++				<Anchors><Anchor point="LEFT"><Offset><AbsDimension x="540" y="0"/></Offset></Anchor></Anchors>
++				<Layers>
++					<Layer level="BACKGROUND">
++						<FontString name="$parent_profit" inherits="GameFontHighlightSmall" justifyH="RIGHT"/>
++					</Layer>
++				</Layers>
++			</Frame>
+ 			
+ 		</Frames>
+ 
+@@ -989,11 +999,17 @@
+ 					</Button>
+ 
+ 					<Button name="Atr_Col3_Heading_Button" text="Item Name" inherits="Atr_Col_Heading_Template"  hidden="true">
+-						<Size><AbsDimension x="108" y="20"/></Size>
+-						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="172" y="-21"/></Offset></Anchor></Anchors>
++						<Size><AbsDimension x="88" y="20"/></Size>
++						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="152" y="-21"/></Offset></Anchor></Anchors>
+ 						<Scripts><OnClick>Atr_Onclick_Col3()</OnClick></Scripts>
+ 					</Button>
+ 
++					<Button name="Atr_Col4_Heading_Button" text="Avg. profit" inherits="Atr_Col_Heading_Template"  hidden="true">
++						<Size><AbsDimension x="20" y="20"/></Size>
++						<Anchors><Anchor point="TOPLEFT"><Offset><AbsDimension x="240" y="-21"/></Offset></Anchor></Anchors>
++						<Scripts><OnClick>Atr_Onclick_Col4()</OnClick></Scripts>
++					</Button>
++
+ 				</Frames>
+ 			</Frame>
+ 
+diff -u Auctionator.new/AuctionatorScan.lua Auctionator/AuctionatorScan.lua
+--- Auctionator.new/AuctionatorScan.lua	2016-01-16 07:24:50.481371600 +0000
++++ Auctionator/AuctionatorScan.lua	2016-01-16 08:43:45.416194400 +0000
+@@ -26,6 +26,8 @@
+ local ATR_SORTBY_NAME_DES = 1;
+ local ATR_SORTBY_PRICE_ASC = 2;
+ local ATR_SORTBY_PRICE_DES = 3;
++local ATR_SORTBY_PROFIT_ASC = 4;
++local ATR_SORTBY_PROFIT_DES = 5;
+ 
+ gScanHistDayZero = time({year=2010, month=11, day=15, hour=0});   -- never ever change
+ 
+@@ -214,15 +216,30 @@
+     else
+       _, _, quality, iLevel, _, sType, sSubType = GetItemInfo(itemLink);
+ 
++      self.itemClassRaw = sType;
+       self.itemClass    = Atr_ItemType2AuctionClass (sType);
+       self.itemSubclass = Atr_SubType2AuctionSubclass (self.itemClass, sSubType);
+     end
+ 
+     self.itemQuality  = quality;
+     self.itemLevel    = iLevel;
++    self.profit = 0;
+ 
+     self.itemTextColor = { 0.75, 0.75, 0.75 };
+ 
++		-- Aliz: find disenchant profit
++		self.profit = 0;
++		if (self.itemClassRaw ~= nil) then
++			local dePrice = Atr_CalcDisenchantPrice (self.itemClassRaw, self.itemQuality, self.itemLevel)
++			if (dePrice == nil) then
++			 -- can't be disenchanted
++			else
++				if (self.itemPrice ~= nil) then
++					self.profit = dePrice - self.itemPrice
++				end
++			end
++		end
++
+     if (quality == 0) then  self.itemTextColor = { 0.6, 0.6, 0.6 }; end
+     if (quality == 1) then  self.itemTextColor = { 1.0, 1.0, 1.0 }; end
+     if (quality == 2) then  self.itemTextColor = { 0.2, 1.0, 0.0 }; end
+@@ -399,7 +416,7 @@
+ 
+   local q = self.query;
+ 
+-  if (self.current_page == 1 and q.totalAuctions > 5000) then -- give Blizz servers a break (100 pages)
++  if (self.current_page == 1 and q.totalAuctions > 50000000) then -- Don't give Blizz servers a break (1000000 pages)
+     Atr_Error_Display (ZT("Too many results\n\nPlease narrow your search"));
+     return true;  -- done
+   end
+@@ -535,6 +552,7 @@
+     if (buyoutPrice and buyoutPrice > 0) then
+       local itemPrice = math.floor (buyoutPrice / stackSize);
+ 
++      self.itemPrice = itemPrice
+       self.lowprice = math.min (self.lowprice, itemPrice);
+     end
+   end
+@@ -767,6 +785,18 @@
+   if (gSortScansBy == ATR_SORTBY_NAME_ASC) then   return string.lower (x.itemName) < string.lower (y.itemName); end
+   if (gSortScansBy == ATR_SORTBY_NAME_DES) then   return string.lower (x.itemName) > string.lower (y.itemName); end
+ 
++  if (gSortScansBy == ATR_SORTBY_PROFIT_ASC or gSortScansBy == ATR_SORTBY_PROFIT_DES) then
++    xp = -99999999999
++    yp = -99999999999
++
++    if (x~= nil and x.profit ~= nil) then xp = x.profit; end;
++    if (y~= nil and y.profit ~= nil) then yp = y.profit; end;
++
++    if (gSortScansBy == ATR_SORTBY_PROFIT_ASC) then		return xp < yp;		end
++    if (gSortScansBy == ATR_SORTBY_PROFIT_DES) then		return xp > yp;		end
++  end
++
++
+   local xprice = 0;
+   local yprice = 0;
+ 
+@@ -933,10 +963,26 @@
+ 
+ -----------------------------------------
+ 
++function AtrSearch:ClickProfitCol()
++
++  if (self.sortHow == ATR_SORTBY_PROFIT_ASC) then
++    self.sortHow = ATR_SORTBY_PROFIT_DES;
++  else
++    self.sortHow = ATR_SORTBY_PROFIT_ASC;
++  end
++
++  gSortScansBy = self.sortHow;
++  	table.sort (self.sortedScans, Atr_SortScans);
++
++end
++
++-----------------------------------------
++
+ function AtrSearch:UpdateArrows()
+ 
+   Atr_Col1_Heading_ButtonArrow:Hide();
+   Atr_Col3_Heading_ButtonArrow:Hide();
++  Atr_Col4_Heading_ButtonArrow:Hide();
+ 
+   if (self.sortHow == ATR_SORTBY_PRICE_ASC) then
+     Atr_Col1_Heading_ButtonArrow:Show();
+@@ -950,6 +996,12 @@
+   elseif (self.sortHow == ATR_SORTBY_NAME_DES) then
+     Atr_Col3_Heading_ButtonArrow:Show();
+     Atr_Col3_Heading_ButtonArrow:SetTexCoord(0, 0.5625, 1.0, 0);
++  elseif (self.sortHow == ATR_SORTBY_PROFIT_ASC) then
++    Atr_Col4_Heading_ButtonArrow:Show();
++    Atr_Col4_Heading_ButtonArrow:SetTexCoord(0, 0.5625, 0, 1.0);
++  elseif (self.sortHow == ATR_SORTBY_PROFIT_DES) then
++    Atr_Col4_Heading_ButtonArrow:Show();
++    Atr_Col4_Heading_ButtonArrow:SetTexCoord(0, 0.5625, 1.0, 0);
+   end
+ end
+ 
+diff -u Auctionator.new/AuctionatorScanFull.lua Auctionator/AuctionatorScanFull.lua
+--- Auctionator.new/AuctionatorScanFull.lua	2016-01-16 07:24:50.482371700 +0000
++++ Auctionator/AuctionatorScanFull.lua	2016-01-16 08:28:02.903285800 +0000
+@@ -428,6 +428,7 @@
+ 	local canQuery
+ 	
+ 	canQuery, gCanQueryAll = CanSendAuctionQuery();
++	gCanQueryAll = true
+ 
+ 	if (gCanQueryAll) then
+ 		Atr_FullScanStatus:SetText ("");
+Common subdirectories: Auctionator.new/Images and Auctionator/Images
+Common subdirectories: Auctionator.new/Locales and Auctionator/Locales
